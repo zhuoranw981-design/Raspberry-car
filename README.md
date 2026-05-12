@@ -747,15 +747,7 @@ python-multipart==0.0.6
 4. **更新**: 关注依赖包安全更新，及时升级
 5. **优化**: 根据实际使用情况，优化避障参数
 
-### 12.3 联系支持
-
-如有问题，请通过以下方式联系：
-- 技术支持邮箱: support@example.com
-- 项目文档: https://github.com/your-repo/car-cloud-service
-- 问题反馈: https://github.com/your-repo/car-cloud-service/issues
-
----
 
 **部署报告完成日期**: 2026-05-12  
 **文档版本**: v1.0  
-**部署人员**: [您的姓名]
+**部署人员**: [王卓然]
