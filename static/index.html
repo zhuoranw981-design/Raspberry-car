@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小车远程监控</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; padding: 10px; }
+        .container { max-width: 480px; margin: 0 auto; }
+        
+        /* 登录弹窗 */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .login-box {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 350px;
+        }
+        .login-title { text-align: center; font-size: 24px; margin-bottom: 20px; color: #00d9ff; }
+        .login-input {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #0f0f1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+        .login-input:focus { outline: none; border-color: #00d9ff; }
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: #00d9ff;
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .login-btn:active { transform: scale(0.98); }
+        .login-error { color: #ff4444; text-align: center; margin-top: 10px; font-size: 14px; }
+        
+        .camera-section { background: #16213e; border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+        .camera-title { font-size: 14px; color: #00d9ff; margin-bottom: 8px; }
+        .camera-frame { width: 100%; height: 220px; background: #0f0f1a; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        #cameraFeed { width: 100%; height: 100%; object-fit: cover; }
+        .camera-placeholder { color: #666; font-size: 14px; }
+        
+        .radar-section { background: #16213e; border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+        .radar-title { font-size: 14px; color: #00d9ff; margin-bottom: 8px; }
+        .radar-container { width: 200px; height: 200px; margin: 0 auto; position: relative; }
+        .radar-circle { width: 100%; height: 100%; border: 2px solid #00d9ff; border-radius: 50%; position: relative; background: radial-gradient(circle, #00d9ff10 0%, transparent 70%); }
+        .radar-center { width: 8px; height: 8px; background: #00d9ff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .radar-ring { position: absolute; border: 1px solid #00d9ff30; border-radius: 50%; }
+        .ring-1 { width: 40px; height: 40px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .ring-2 { width: 80px; height: 80px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .ring-3 { width: 120px; height: 120px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .ring-4 { width: 160px; height: 160px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .radar-point { position: absolute; width: 3px; height: 3px; background: #00ff88; border-radius: 50%; }
+        
+        .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sensor-card { background: #16213e; border-radius: 12px; padding: 12px; }
+        .sensor-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+        .sensor-value { font-size: 18px; font-weight: bold; color: #00d9ff; }
+        .sensor-unit { font-size: 12px; color: #666; margin-left: 4px; }
+        
+        .status-section { background: #16213e; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+        .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .status-label { font-size: 13px; color: #888; }
+        .status-value { font-size: 13px; color: #00ff88; font-weight: bold; }
+        
+        .control-section { background: #16213e; border-radius: 12px; padding: 15px; }
+        .control-title { font-size: 14px; color: #00d9ff; margin-bottom: 12px; }
+        .control-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .control-btn { 
+            padding: 15px; 
+            background: #00d9ff20; 
+            border: 2px solid #00d9ff; 
+            border-radius: 10px; 
+            color: #00d9ff; 
+            font-size: 16px; 
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .control-btn:active { background: #00d9ff40; transform: scale(0.95); }
+        .btn-center { grid-column: 2; }
+        
+        .mode-section { background: #16213e; border-radius: 12px; padding: 15px; margin-bottom: 10px; }
+        .mode-title { font-size: 14px; color: #00d9ff; margin-bottom: 12px; }
+        .mode-switch { display: flex; gap: 10px; margin-bottom: 15px; }
+        .mode-btn { 
+            flex: 1; 
+            padding: 12px; 
+            border-radius: 10px; 
+            border: 2px solid;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .mode-btn.active { background: #00d9ff; color: #000; }
+        .mode-btn.inactive { background: transparent; color: #888; border-color: #333; }
+        
+        .input-group { margin-bottom: 10px; }
+        .input-label { font-size: 12px; color: #888; margin-bottom: 5px; display: block; }
+        .input-field { 
+            width: 100%; 
+            padding: 10px; 
+            background: #0f0f1a; 
+            border: 1px solid #333; 
+            border-radius: 8px; 
+            color: white; 
+            font-size: 14px;
+        }
+        .input-field:focus { outline: none; border-color: #00d9ff; }
+        
+        .ultrasonic-section { background: #16213e; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+        .ultrasonic-title { font-size: 14px; color: #00d9ff; margin-bottom: 10px; }
+        .ultrasonic-bar { height: 20px; background: #0f0f1a; border-radius: 10px; overflow: hidden; }
+        .ultrasonic-fill { height: 100%; background: linear-gradient(90deg, #00ff88, #00d9ff); transition: width 0.3s; }
+        
+        .connection-status { 
+            position: fixed; 
+            top: 10px; 
+            right: 10px; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            background: #ff4444; 
+            animation: pulse 2s infinite;
+        }
+        .connection-status.connected { background: #00ff88; }
+        
+        .notification { 
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px 30px;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            display: none;
+            z-index: 1000;
+        }
+        .notification.show { display: block; animation: fadeIn 0.3s; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录弹窗 -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <div class="login-title">🔐 小车控制</div>
+            <input type="password" class="login-input" id="passwordInput" placeholder="请输入控制密码">
+            <button class="login-btn" onclick="handleLogin()">登录</button>
+            <div class="login-error" id="loginError"></div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">通知</div>
+    <div class="container">
+        <div class="connection-status" id="connStatus"></div>
+        
+        <!-- 摄像头 -->
+        <div class="camera-section">
+            <div class="camera-title">📷 摄像头</div>
+            <div class="camera-frame" id="cameraFrame">
+                <div class="camera-placeholder" id="cameraPlaceholder">等待摄像头数据...</div>
+                <img id="cameraFeed" src="" alt="摄像头画面" style="display: none;" />
+            </div>
+        </div>
+        
+        <!-- 雷达 -->
+        <div class="radar-section">
+            <div class="radar-title">📡 雷达点阵图</div>
+            <div class="radar-container">
+                <div class="radar-circle">
+                    <div class="radar-center"></div>
+                    <div class="radar-ring ring-1"></div>
+                    <div class="radar-ring ring-2"></div>
+                    <div class="radar-ring ring-3"></div>
+                    <div class="radar-ring ring-4"></div>
+                    <div id="radarPoints"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 超声波 -->
+        <div class="ultrasonic-section">
+            <div class="ultrasonic-title">🔊 超声波距离</div>
+            <div class="ultrasonic-bar">
+                <div class="ultrasonic-fill" id="ultrasonicBar"></div>
+            </div>
+            <div class="status-row" style="margin-top: 8px;">
+                <span class="status-label">最小距离</span>
+                <span class="status-value" id="ultrasonicValue">-- cm</span>
+            </div>
+        </div>
+        
+        <!-- 姿态数据 -->
+        <div class="sensor-grid">
+            <div class="sensor-card">
+                <div class="sensor-label">加速度 X</div>
+                <div class="sensor-value" id="accX">--<span class="sensor-unit">g</span></div>
+            </div>
+            <div class="sensor-card">
+                <div class="sensor-label">加速度 Y</div>
+                <div class="sensor-value" id="accY">--<span class="sensor-unit">g</span></div>
+            </div>
+            <div class="sensor-card">
+                <div class="sensor-label">加速度 Z</div>
+                <div class="sensor-value" id="accZ">--<span class="sensor-unit">g</span></div>
+            </div>
+            <div class="sensor-card">
+                <div class="sensor-label">陀螺仪 X</div>
+                <div class="sensor-value" id="gyroX">--<span class="sensor-unit">°/s</span></div>
+            </div>
+            <div class="sensor-card">
+                <div class="sensor-label">陀螺仪 Y</div>
+                <div class="sensor-value" id="gyroY">--<span class="sensor-unit">°/s</span></div>
+            </div>
+            <div class="sensor-card">
+                <div class="sensor-label">陀螺仪 Z</div>
+                <div class="sensor-value" id="gyroZ">--<span class="sensor-unit">°/s</span></div>
+            </div>
+        </div>
+        
+        <!-- 模式切换 -->
+        <div class="mode-section">
+            <div class="mode-title">🎛️ 控制模式</div>
+            <div class="mode-switch">
+                <button class="mode-btn active" id="manualMode" onclick="switchMode('manual')">手动控制</button>
+                <button class="mode-btn inactive" id="autoMode" onclick="switchMode('auto')">自动避障</button>
+            </div>
+            
+            <!-- 速度设置 -->
+            <div class="input-group">
+                <label class="input-label">🚀 速度值 (0-100)</label>
+                <input type="range" class="input-field" id="speedSlider" min="0" max="100" value="60" onchange="updateSpeedDisplay()">
+                <div style="text-align: center; margin-top: 5px; color: #00d9ff;">当前速度: <span id="speedValue">60</span></div>
+            </div>
+            
+            <!-- 自动避障参数 -->
+            <div id="autoParams" style="display: none;">
+                <div class="input-group">
+                    <label class="input-label">🛡️ 安全距离 (cm)</label>
+                    <input type="number" class="input-field" id="safeDistance" min="10" max="200" value="50">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">⚠️ 警告距离 (cm)</label>
+                    <input type="number" class="input-field" id="warningDistance" min="20" max="300" value="100">
+                </div>
+            </div>
+        </div>
+        
+        <!-- 状态信息 -->
+        <div class="status-section">
+            <div class="status-row">
+                <span class="status-label">运动状态</span>
+                <span class="status-value" id="carStatus">停止</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">当前速度</span>
+                <span class="status-value" id="carSpeed">0 km/h</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">决策原因</span>
+                <span class="status-value" id="decisionReason">--</span>
+            </div>
+        </div>
+        
+        <!-- 控制按钮 -->
+        <div class="control-section">
+            <div class="control-title">🎮 手动控制</div>
+            <div class="control-grid">
+                <div></div>
+                <button class="control-btn btn-center" onclick="sendCommand('forward')">↑ 前进</button>
+                <div></div>
+                <button class="control-btn" onclick="sendCommand('left')">← 左转</button>
+                <button class="control-btn" onclick="sendCommand('stop')">● 停止</button>
+                <button class="control-btn" onclick="sendCommand('right')">右转 →</button>
+                <div></div>
+                <button class="control-btn btn-center" onclick="sendCommand('backward')">↓ 后退</button>
+                <div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const serverUrl = window.location.host;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${wsProtocol}//${serverUrl}/ws`);
+        
+        let currentMode = 'manual';
+        let currentSpeed = 60;
+        let isAuthenticated = false;
+        
+        ws.onopen = () => {
+            document.getElementById('connStatus').classList.add('connected');
+        };
+        
+        ws.onclose = () => {
+            document.getElementById('connStatus').classList.remove('connected');
+            setTimeout(() => window.location.reload(), 3000);
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                updateUI(data);
+            } catch (e) {
+                console.error('解析消息失败:', e);
+            }
+        };
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 2000);
+        }
+        
+        function handleLogin() {
+            const password = document.getElementById('passwordInput').value;
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    isAuthenticated = true;
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    showNotification('登录成功！');
+                } else {
+                    document.getElementById('loginError').textContent = '密码错误，请重试';
+                }
+            });
+        }
+        
+        function updateSpeedDisplay() {
+            const slider = document.getElementById('speedSlider');
+            const display = document.getElementById('speedValue');
+            currentSpeed = parseInt(slider.value);
+            display.textContent = currentSpeed;
+        }
+        
+        function switchMode(mode) {
+            if (!isAuthenticated) {
+                showNotification('请先登录');
+                return;
+            }
+            
+            if (mode === currentMode) return;
+            
+            currentMode = mode;
+            
+            document.getElementById('manualMode').className = mode === 'manual' ? 'mode-btn active' : 'mode-btn inactive';
+            document.getElementById('autoMode').className = mode === 'auto' ? 'mode-btn active' : 'mode-btn inactive';
+            document.getElementById('autoParams').style.display = mode === 'auto' ? 'block' : 'none';
+            
+            if (mode === 'auto') {
+                const safeDist = parseInt(document.getElementById('safeDistance').value);
+                const warningDist = parseInt(document.getElementById('warningDistance').value);
+                
+                fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        auto_mode: true, 
+                        speed: currentSpeed,
+                        safe_distance: safeDist,
+                        warning_distance: warningDist
+                    })
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        showNotification(`已切换到自动避障模式，速度: ${currentSpeed}`);
+                    }
+                });
+            } else {
+                fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auto_mode: false })
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        showNotification('已切换到手动控制模式');
+                    }
+                });
+            }
+        }
+        
+        function sendCommand(action) {
+            if (!isAuthenticated) {
+                showNotification('请先登录');
+                return;
+            }
+            
+            if (currentMode === 'auto') {
+                showNotification('当前为自动避障模式，请先切换到手动模式');
+                return;
+            }
+            
+            fetch('/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, speed: action === 'stop' ? 0 : currentSpeed })
+            }).then(res => res.json()).then(data => {
+                if (!data.success) {
+                    if (data.message === '请先登录') {
+                        document.getElementById('loginOverlay').style.display = 'flex';
+                    }
+                }
+            });
+        }
+        
+        function updateUI(data) {
+            if (data.camera) {
+                try {
+                    const cameraData = typeof data.camera === 'string' ? JSON.parse(data.camera) : data.camera;
+                    if (cameraData.data) {
+                        document.getElementById('cameraPlaceholder').style.display = 'none';
+                        document.getElementById('cameraFeed').src = `data:image/jpeg;base64,${cameraData.data}`;
+                        document.getElementById('cameraFeed').style.display = 'block';
+                    }
+                } catch (e) {}
+            }
+            
+            if (data.radar && data.radar.data) {
+                updateRadar(data.radar.data);
+            }
+            
+            if (data.ultrasonic && data.ultrasonic.data) {
+                updateUltrasonic(data.ultrasonic.data);
+            }
+            
+            if (data.pose && data.pose.data) {
+                updatePose(data.pose.data);
+            }
+            
+            if (data.last_command) {
+                updateCommandStatus(data.last_command);
+            }
+            
+            if (data.mode_info) {
+                currentMode = data.mode_info.auto_mode ? 'auto' : 'manual';
+                document.getElementById('manualMode').className = currentMode === 'manual' ? 'mode-btn active' : 'mode-btn inactive';
+                document.getElementById('autoMode').className = currentMode === 'auto' ? 'mode-btn active' : 'mode-btn inactive';
+                document.getElementById('autoParams').style.display = currentMode === 'auto' ? 'block' : 'none';
+            }
+        }
+        
+        function updateRadar(points) {
+            const container = document.getElementById('radarPoints');
+            container.innerHTML = '';
+            if (!points || points.length === 0) return;
+            
+            const radarRadius = 90;
+            points.forEach(point => {
+                const angle = point.angle;
+                const distance = point.distance;
+                if (distance <= 0 || distance > 500) return;
+                
+                const angleRad = (angle - 90) * Math.PI / 180;
+                const displayDistance = Math.min(distance, radarRadius);
+                const x = displayDistance * Math.cos(angleRad);
+                const y = displayDistance * Math.sin(angleRad);
+                
+                const posX = 100 + x;
+                const posY = 100 + y;
+                
+                if (posX < 0 || posX > 200 || posY < 0 || posY > 200) return;
+                
+                const pointEl = document.createElement('div');
+                pointEl.className = 'radar-point';
+                pointEl.style.left = `${posX}px`;
+                pointEl.style.top = `${posY}px`;
+                
+                if (distance < 50) {
+                    pointEl.style.background = '#ff4444';
+                    pointEl.style.width = '4px';
+                    pointEl.style.height = '4px';
+                } else if (distance < 100) {
+                    pointEl.style.background = '#ffaa00';
+                } else {
+                    pointEl.style.background = '#00ff88';
+                }
+                
+                container.appendChild(pointEl);
+            });
+        }
+        
+        function updateUltrasonic(data) {
+            const minDist = data.min_distance || 0;
+            const maxDist = 200;
+            
+            document.getElementById('ultrasonicValue').textContent = `${minDist} cm`;
+            
+            const bar = document.getElementById('ultrasonicBar');
+            const percentage = Math.min(minDist / maxDist * 100, 100);
+            bar.style.width = `${percentage}%`;
+            
+            if (minDist < 50) {
+                bar.style.background = 'linear-gradient(90deg, #ff4444, #ffaa00)';
+            } else if (minDist < 100) {
+                bar.style.background = 'linear-gradient(90deg, #ffaa00, #00ff88)';
+            } else {
+                bar.style.background = 'linear-gradient(90deg, #00ff88, #00d9ff)';
+            }
+        }
+        
+        function updatePose(data) {
+            if (data.acc_x !== undefined) document.getElementById('accX').innerHTML = data.acc_x.toFixed(2) + '<span class="sensor-unit">g</span>';
+            if (data.acc_y !== undefined) document.getElementById('accY').innerHTML = data.acc_y.toFixed(2) + '<span class="sensor-unit">g</span>';
+            if (data.acc_z !== undefined) document.getElementById('accZ').innerHTML = data.acc_z.toFixed(2) + '<span class="sensor-unit">g</span>';
+            if (data.gyro_x !== undefined) document.getElementById('gyroX').innerHTML = data.gyro_x.toFixed(2) + '<span class="sensor-unit">°/s</span>';
+            if (data.gyro_y !== undefined) document.getElementById('gyroY').innerHTML = data.gyro_y.toFixed(2) + '<span class="sensor-unit">°/s</span>';
+            if (data.gyro_z !== undefined) document.getElementById('gyroZ').innerHTML = data.gyro_z.toFixed(2) + '<span class="sensor-unit">°/s</span>';
+        }
+        
+        function updateCommandStatus(cmd) {
+            const statusEl = document.getElementById('carStatus');
+            const speedEl = document.getElementById('carSpeed');
+            const reasonEl = document.getElementById('decisionReason');
+            
+            const actionMap = {
+                'stop': '停止',
+                'forward': '前进',
+                'backward': '后退',
+                'left': '左转',
+                'right': '右转'
+            };
+            
+            statusEl.textContent = actionMap[cmd.action] || cmd.action;
+            speedEl.textContent = `${cmd.speed || 0} km/h`;
+            reasonEl.textContent = cmd.reason || '--';
+        }
+        
+        // 键盘事件
+        document.getElementById('passwordInput').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+    </script>
+</body>
+</html>
